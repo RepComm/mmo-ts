@@ -1,7 +1,7 @@
 
 import { Scene2D, GradientDef } from "./scene/scene2d.js";
-import { Object2D, PathObject2D } from "./scene/object2d.js";
-import { EPSILON } from "./math/general.js";
+import { Object2D } from "./scene/object.js";
+import { PathObject2D } from "./scene/pathobject.js";
 
 export class Resource {
   response: Response = undefined;

@@ -4,6 +4,7 @@ import { Renderer } from "./ui/renderer.js";
 import { GameInput } from "./input/gameinput.js";
 import { SceneResource } from "./resource.js";
 import { Vec2 } from "./math/vec.js";
+import { Penguin } from "./objects/penguin.js";
 
 async function init() {
   let sceneRes = await SceneResource.load("./scenes/plaza.svg");
@@ -16,14 +17,10 @@ async function init() {
   }).setScene(scene).handleResize().start();
 
   const penguinRes = await SceneResource.load("./objects/penguin.svg");
-  const penguin = penguinRes.scene;
-
-  const walkFrom = new Vec2();
-  const walkTo = new Vec2();
-  let isWalking = false;
-  let walkStep = 2;
-  let walkSteps = 0;
-  let walkDist = 0;
+  const penguin = new Penguin();
+  penguinRes.scene.transform.position.set(-8, -14);
+  penguin.add(penguinRes.scene);
+  penguin.transform.position.set(100, 100);
 
   scene.add(penguin);
 
@@ -46,27 +43,20 @@ async function init() {
     renderer.zoom = scene.transform.scale;
   })
 
+  const pointerVec = new Vec2();
+
   renderer.addRenderListener((ctx, delta) => {
     drawFpsCounter(ctx);
 
-    if (input.pointerPrimary) {
-      walkTo.set(
-        input.pointerScreenX,
-        input.pointerScreenY
-      );
-      walkFrom.copy(penguin.transform.position);
-      isWalking = true;
-      walkSteps = 0;
-      walkDist = walkTo.distance(walkFrom);
-    }
+    pointerVec.set(
+      input.pointerScreenX,
+      input.pointerScreenY
+    );
 
-    if (isWalking) {
-      walkSteps += walkStep / walkDist;
-      if (walkSteps > 1) isWalking = false;
-      penguin.transform.position.copy(walkFrom).lerp(walkTo, walkSteps);
+    if (input.pointerPrimary) {
+      penguin.walkTo(pointerVec);
     }
   });
-
 }
 
 init();

@@ -75,7 +75,7 @@ export class Renderer extends Component {
     }
     setTimeout(() => {
       this.onResizeCallback(undefined);
-    }, 50);
+    }, 100);
   }
   init() {
     this.ctx = this.element.getContext("2d");
