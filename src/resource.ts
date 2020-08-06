@@ -167,7 +167,6 @@ export class SceneResource extends XmlResource {
       } else if (node.style.fill == "none") {
         result.enableFill(false);
       } else {
-        console.log(node.style.fill);
         result.fillStyle = node.style.fill;
       }
     }
@@ -184,13 +183,12 @@ export class SceneResource extends XmlResource {
       } else if (node.style.stroke == "none") {
         result.enableStroke(false);
       } else {
-        console.log(node.style.stroke);
         result.strokeStyle = node.style.stroke;
       }
     }
     if (node.style.strokeWidth) {
       result.lineWidth = parseFloat(node.style.strokeWidth);
-      if (result.lineWidth < EPSILON) {
+      if (result.lineWidth < 0.8) {
         result.enableStroke(false);
       }
     }
@@ -204,12 +202,16 @@ export class SceneResource extends XmlResource {
     } else {
       result = new GradientDef();
     }
+    node.x1.baseVal.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_NUMBER);
+    node.y1.baseVal.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_NUMBER);
+    node.x2.baseVal.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_NUMBER);
+    node.y2.baseVal.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_NUMBER);
+
     if (!result.x1) result.x1 = node.x1.baseVal.value;
     if (!result.y1) result.y1 = node.y1.baseVal.value;
     if (!result.x2) result.x2 = node.x2.baseVal.value;
     if (!result.y2) result.y2 = node.y2.baseVal.value;
     result.copyFrom = node.href.baseVal;
-
     //Remove hashtag
     if (result.copyFrom.startsWith("#")) result.copyFrom = result.copyFrom.substring(1);
 
@@ -247,9 +249,6 @@ export class SceneResource extends XmlResource {
       }
     }
   }
-  static parseSvgFill(node: Element) {
-
-  }
   static load(uri: string, premadeResource?: SceneResource, type: SupportedType = "image/svg+xml"): Promise<SceneResource> {
     return new Promise(async (resolve, reject) => {
       let result: SceneResource;
@@ -264,6 +263,8 @@ export class SceneResource extends XmlResource {
 
       let svgs = result.xml.getElementsByTagName("svg");
       let firstSvg = svgs[0];
+      result.scene.width = firstSvg.width.baseVal.value;
+      result.scene.height = firstSvg.height.baseVal.value;
 
       if (svgs.length < 1) {
         console.warn("No svg elements found in document, scene imported is empty!");
@@ -283,14 +284,12 @@ export class SceneResource extends XmlResource {
           } else {
             if (gradNode instanceof SVGLinearGradientElement) {
               SceneResource.parseSvgGradient(gradNode, def);
-              console.log("Copied linear grad by href", def);
             } else {
               console.warn("Couldn't use href of linear gradient as the element it points to by id was not a linear gradient", gradNode);
             }
           }
         }
       });
-
       resolve(result);
     });
   }

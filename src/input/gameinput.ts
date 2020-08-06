@@ -70,7 +70,6 @@ export class InputBinding {
     for (let k of this.keys) {
       if (input.raw.keyboard.get(k)) return true;
     }
-    //console.log("Gamepad found");
     //Test all the gamepad buttons assigned
     for (let gpBtn of this.gpBtns) {
       if (input.getGamePadManager().getPrimaryButton(gpBtn)) {
@@ -94,7 +93,6 @@ export class InputBinding {
         }
       }
     } else {
-      //console.log("No gamepad found");
     }
 
     //Check touch rectangles
@@ -332,13 +330,21 @@ export class GameInput {
     return GameInput.SINGLETON.getButton(name);
   }
   get pointerScreenX(): number {
-    return this.raw.pointer.x;
+    if (this.renderer) {
+      return this.raw.pointer.x / this.renderer.zoom;
+    } else {
+      return this.raw.pointer.x;
+    }
   }
   static get pointerScreenX(): number {
     return GameInput.SINGLETON.pointerScreenX;
   }
   get pointerScreenY(): number {
-    return this.raw.pointer.y;
+    if (this.renderer) {
+      return this.raw.pointer.y / this.renderer.zoom;
+    } else {
+      return this.raw.pointer.y;
+    }
   }
   static get pointerScreenY(): number {
     return GameInput.SINGLETON.pointerScreenY;

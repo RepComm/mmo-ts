@@ -11,6 +11,10 @@ export interface RenderListener {
   (ctx: CanvasRenderingContext2D, deltaTime: number):void;
 }
 
+export interface ResizeListener {
+  ():void;
+}
+
 export class Renderer extends Component {
   element: HTMLCanvasElement; //Override component's element member
   scene: Scene2D;
@@ -19,9 +23,10 @@ export class Renderer extends Component {
   renderLoop: boolean = false;
   renderCallback: FrameRequestCallback;
   onResizeCallback: EventListener;
-  renderListeners: Set<RenderListener>;
+  renderListeners: Set<RenderListener> = new Set<RenderListener>();
+  resizeListeners: Set<ResizeListener> = new Set<ResizeListener>();;
   center:{x:0, y:0};
-  zoom:1;
+  zoom: number = 1;
   fps: number = 0;
   countedFrames: number = 0;
   lastTime: number = 0;
@@ -64,12 +69,13 @@ export class Renderer extends Component {
     this.onResizeCallback = () => {
       this.element.width = Math.floor(this.rect.width);
       this.element.height = Math.floor(this.rect.height);
-      // console.log("On resize", this.element.width, this.element.height);
+      this.resizeListeners.forEach ((cb)=>{
+        cb();
+      });
     }
     setTimeout(() => {
       this.onResizeCallback(undefined);
     }, 50);
-    this.renderListeners = new Set<RenderListener>();
   }
   init() {
     this.ctx = this.element.getContext("2d");
@@ -121,6 +127,21 @@ export class Renderer extends Component {
       throw "Render listener hasn't been added, cannot be removed";
     }
     this.renderListeners.delete(renderer);
+    return this;
+  }
+  removeResizeListener (listener: ResizeListener): Renderer {
+    if (!this.hasResizeListener(listener)) throw "Resize listener was never added, cannot remove";
+    this.resizeListeners.delete(listener);
+    return this;
+  }
+  hasResizeListener (listener: ResizeListener): boolean {
+    return this.resizeListeners.has(listener);
+  }
+  addResizeListener (listener: ResizeListener): Renderer {
+    if (this.hasResizeListener(listener)) {
+      throw "Cannot add listener twice";
+    }
+    this.resizeListeners.add(listener);
     return this;
   }
 }
