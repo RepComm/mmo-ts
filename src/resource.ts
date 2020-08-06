@@ -1,6 +1,7 @@
 
-import { Scene2D } from "./scene/scene2d.js";
+import { Scene2D, GradientDef } from "./scene/scene2d.js";
 import { Object2D, PathObject2D } from "./scene/object2d.js";
+import { EPSILON } from "./math/general.js";
 
 export class Resource {
   response: Response = undefined;
@@ -24,8 +25,8 @@ export class Resource {
 export class TextResource extends Resource {
   text: string;
 
-  static load (uri: string, premadeResource?: TextResource): Promise<TextResource> {
-    return new Promise(async(resolve, reject)=>{
+  static load(uri: string, premadeResource?: TextResource): Promise<TextResource> {
+    return new Promise(async (resolve, reject) => {
       let result: TextResource;
       if (premadeResource) {
         result = premadeResource;
@@ -45,8 +46,8 @@ export class XmlResource extends TextResource {
   static DOM_PARSER: DOMParser = new DOMParser();
   xml: Document;
 
-  static load (uri: string, premadeResource?: XmlResource, type: SupportedType = "text/xml"): Promise<XmlResource> {
-    return new Promise(async(resolve, reject)=>{
+  static load(uri: string, premadeResource?: XmlResource, type: SupportedType = "text/xml"): Promise<XmlResource> {
+    return new Promise(async (resolve, reject) => {
       let result: XmlResource;
       if (premadeResource) {
         result = premadeResource;
@@ -71,6 +72,18 @@ export interface DOMMatrixDecomp {
   skew: number
 }
 
+/**This one is going to need work if it means to cover edge cases..
+ * @param url
+ */
+function parseFillUrl (url: string): string {
+  let start = url.indexOf("#");
+
+  let end = url.lastIndexOf("\"");
+  let id = url.substring(start+1, end);
+  
+  return id;
+}
+
 export class SceneResource extends XmlResource {
   scene: Scene2D;
 
@@ -83,14 +96,14 @@ export class SceneResource extends XmlResource {
     let F = (m.a - m.d) / 2
     let G = (m.c + m.b) / 2
     let H = (m.c - m.b) / 2
-  
+
     let Q = Math.sqrt(E * E + H * H);
     let R = Math.sqrt(F * F + G * G);
     let a1 = Math.atan2(G, F);
     let a2 = Math.atan2(H, E);
     let theta = (a2 - a1) / 2;
     let phi = (a2 + a1) / 2;
-  
+
     // The requested parameters are then theta, 
     // sx, sy, phi,
     return {
@@ -102,7 +115,7 @@ export class SceneResource extends XmlResource {
       skew: -theta * 180 / Math.PI
     };
   }
-  static copySvgGroupTransToObject2D (node: SVGGElement, obj: Object2D) {
+  static copySvgTransformToObject2D(node: SVGGElement, obj: Object2D) {
     if (node.transform.baseVal.numberOfItems < 1) return;
 
     let decomp = SceneResource.decomposeDomMatrix(
@@ -116,27 +129,21 @@ export class SceneResource extends XmlResource {
     obj.transform.rotation = decomp.rotate;
     obj.transform.scale = decomp.scaleX;
   }
-  static parseSvgGroup (node: SVGGElement): Object2D {
+  static parseSvgGroup(scene: Scene2D, node: SVGGElement): Object2D {
     let result: Object2D = new Object2D();
-    SceneResource.copySvgGroupTransToObject2D(node, result);
+    SceneResource.copySvgTransformToObject2D(node, result);
 
-    for (let child of node.children) {
-      if (child instanceof SVGGElement) {
-        result.add(SceneResource.parseSvgGroup(child));
-      }
-      if (child instanceof SVGPathElement) {
-        result.add(SceneResource.parseSvgPath(child));
-      }
-    }
+    SceneResource.parseNodeChildren(scene, node, result);
 
     return result;
   }
-  static parseSvgPath (node: SVGPathElement): PathObject2D {
+  static parseSvgPath(scene: Scene2D, node: SVGPathElement): PathObject2D {
     let result: PathObject2D = new PathObject2D();
-    SceneResource.copySvgGroupTransToObject2D(node, result);
+    SceneResource.copySvgTransformToObject2D(node, result);
+
+    SceneResource.parseNodeChildren(scene, node, result);
 
     let dPath = node.getAttribute("d");
-    console.log(dPath);
 
     let path: Path2D;
     if (dPath) {
@@ -147,10 +154,104 @@ export class SceneResource extends XmlResource {
     }
     result.setPath(path);
 
+    if (node.style.fill) {
+      if (node.style.fill.trim().startsWith("url")) {
+        let url = parseFillUrl(node.style.fill);
+        if (scene.gradients.has(url)) {
+          let gradDef = scene.gradients.get(url);
+          result.fillStyle = undefined;
+          result.setGradientFill(gradDef);
+        } else {
+          console.warn("Couldn't find gradient for id", url, "extracted from url", node.style.fill);
+        }
+      } else if (node.style.fill == "none") {
+        result.enableFill(false);
+      } else {
+        console.log(node.style.fill);
+        result.fillStyle = node.style.fill;
+      }
+    }
+    if (node.style.stroke) {
+      if (node.style.stroke.trim().startsWith("url")) {
+        let url = parseFillUrl(node.style.fill);
+        if (scene.gradients.has(url)) {
+          let gradDef = scene.gradients.get(url);
+          result.strokeStyle = undefined;
+          result.setGradientStroke(gradDef);
+        } else {
+          console.warn("Couldn't find gradient for id", url, "extracted from url", node.style.fill);
+        }
+      } else if (node.style.stroke == "none") {
+        result.enableStroke(false);
+      } else {
+        console.log(node.style.stroke);
+        result.strokeStyle = node.style.stroke;
+      }
+    }
+    if (node.style.strokeWidth) {
+      result.lineWidth = parseFloat(node.style.strokeWidth);
+      if (result.lineWidth < EPSILON) {
+        result.enableStroke(false);
+      }
+    }
+
     return result;
   }
-  static load (uri: string, premadeResource?: SceneResource, type: SupportedType = "image/svg+xml"): Promise<SceneResource> {
-    return new Promise(async(resolve, reject)=>{
+  static parseSvgGradient(node: SVGLinearGradientElement, predefinedGrad?: GradientDef): GradientDef {
+    let result: GradientDef;
+    if (predefinedGrad) {
+      result = predefinedGrad;
+    } else {
+      result = new GradientDef();
+    }
+    if (!result.x1) result.x1 = node.x1.baseVal.value;
+    if (!result.y1) result.y1 = node.y1.baseVal.value;
+    if (!result.x2) result.x2 = node.x2.baseVal.value;
+    if (!result.y2) result.y2 = node.y2.baseVal.value;
+    result.copyFrom = node.href.baseVal;
+
+    //Remove hashtag
+    if (result.copyFrom.startsWith("#")) result.copyFrom = result.copyFrom.substring(1);
+
+    for (let child of node.children) {
+      if (child instanceof SVGStopElement) {
+        result.setStop(
+          child.offset.baseVal,
+          {
+            color: child.style.stopColor
+          }
+        );
+      }
+    }
+
+    return result;
+  }
+  static parseNodeChildren(scene: Scene2D, node: Element, parent: Object2D) {
+    let obj: Object2D;
+    for (let child of node.children) {
+      if (child instanceof SVGGElement) {
+        obj = SceneResource.parseSvgGroup(scene, child);
+
+        parent.add(obj);
+      } else if (child instanceof SVGPathElement) {
+        obj = SceneResource.parseSvgPath(scene, child);
+
+        parent.add(obj);
+      } else if (child instanceof SVGLinearGradientElement) {
+        scene.setGradient(
+          child.id,
+          SceneResource.parseSvgGradient(child)
+        );
+      } else if (child instanceof SVGDefsElement) {
+        SceneResource.parseNodeChildren(scene, child, parent);
+      }
+    }
+  }
+  static parseSvgFill(node: Element) {
+
+  }
+  static load(uri: string, premadeResource?: SceneResource, type: SupportedType = "image/svg+xml"): Promise<SceneResource> {
+    return new Promise(async (resolve, reject) => {
       let result: SceneResource;
       if (premadeResource) {
         result = premadeResource;
@@ -158,34 +259,37 @@ export class SceneResource extends XmlResource {
         result = new SceneResource();
       }
       result = await XmlResource.load(uri, result) as SceneResource;
-      
+
       result.scene = new Scene2D();
 
-      let child: Element;
-      let firstSvg: SVGElement;
-      for (let i=0; i<result.xml.children.length; i++) {
-        child = result.xml.children[i];
-        if (child instanceof SVGElement) {
-          firstSvg = child;
-          break;
-        }
+      let svgs = result.xml.getElementsByTagName("svg");
+      let firstSvg = svgs[0];
+
+      if (svgs.length < 1) {
+        console.warn("No svg elements found in document, scene imported is empty!");
+      } else {
+        SceneResource.parseNodeChildren(
+          result.scene,
+          firstSvg,
+          result.scene
+        );
       }
 
-      if (!firstSvg) console.warn("Not svg element found in document! Scene imported is empty");
-
-      let obj: Object2D;
-      for (let child of firstSvg.children) {
-        if (child instanceof SVGGElement) {
-          obj = SceneResource.parseSvgGroup(child);
-
-          result.scene.add(obj);
+      result.scene.gradients.forEach((def, id)=>{
+        if (def.copyFrom) {
+          let gradNode = firstSvg.getElementById(def.copyFrom);
+          if (!gradNode) {
+            console.warn("Couldn't use href of linear gradient, no gradient found by id", def.copyFrom);
+          } else {
+            if (gradNode instanceof SVGLinearGradientElement) {
+              SceneResource.parseSvgGradient(gradNode, def);
+              console.log("Copied linear grad by href", def);
+            } else {
+              console.warn("Couldn't use href of linear gradient as the element it points to by id was not a linear gradient", gradNode);
+            }
+          }
         }
-        if (child instanceof SVGPathElement) {
-          obj = SceneResource.parseSvgPath(child);
-
-          result.scene.add(obj);
-        }
-      }
+      });
 
       resolve(result);
     });

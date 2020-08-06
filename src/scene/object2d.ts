@@ -1,5 +1,6 @@
 
 import { Transform2d } from "../math/transform.js";
+import { GradientDef } from "./scene2d.js";
 
 export class Object2D {
   parent: Object2D;
@@ -96,6 +97,10 @@ export class PathObject2D extends Object2D {
   lineWidth: number = 1;
   doStroke: boolean = true;
   doFill: boolean = true;
+  fillGradientDef: GradientDef;
+  needsFillGradientCompile: boolean = false;
+  strokeGradientDef: GradientDef;
+  needsStrokeGradientCompile: boolean = false;
   constructor() {
     super();
   }
@@ -117,15 +122,43 @@ export class PathObject2D extends Object2D {
   hasPath(): boolean {
     return this.path != null && this.path != undefined;
   }
+  setGradientFill (gradDef: GradientDef): Object2D {
+    this.fillGradientDef = gradDef;
+    if (this.fillGradientDef) {
+      this.needsFillGradientCompile = true;
+    } else {
+      this.needsFillGradientCompile = false;
+    }
+    return this;
+  }
+  setGradientStroke (gradDef: GradientDef): Object2D {
+    this.strokeGradientDef = gradDef;
+    if (this.strokeGradientDef) {
+      this.needsStrokeGradientCompile = true;
+    } else {
+      this.needsStrokeGradientCompile = false;
+    }
+    return this;
+  }
   render(ctx: CanvasRenderingContext2D): Object2D {
     this.preRender(ctx);
     ctx.lineWidth = this.lineWidth / this.transform.scale;
 
     if (this.doFill) {
+      if (this.needsFillGradientCompile) {
+        this.needsFillGradientCompile = false;
+        this.fillGradientDef.compile(ctx);
+        this.fillStyle = this.fillGradientDef.compiled;
+      }
       ctx.fillStyle = this.fillStyle;
       ctx.fill(this.path);
     }
     if (this.doStroke) {
+      if (this.needsStrokeGradientCompile) {
+        this.needsStrokeGradientCompile = false;
+        this.strokeGradientDef.compile(ctx);
+        this.strokeStyle = this.strokeGradientDef.compiled;
+      }
       ctx.strokeStyle = this.strokeStyle;
       ctx.stroke(this.path);
     }

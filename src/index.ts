@@ -8,7 +8,7 @@ import { SceneResource } from "./resource.js";
 
 async function init() {
   let res = await SceneResource.load("./scenes/plaza.svg");
-
+  
   const scene = res.scene;
   scene.transform.position.set(100, 100);
 
