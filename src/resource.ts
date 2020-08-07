@@ -233,11 +233,11 @@ export class SceneResource extends XmlResource {
     for (let child of node.children) {
       if (child instanceof SVGGElement) {
         obj = SceneResource.parseSvgGroup(scene, child);
-
+        obj.label = child.id;
         parent.add(obj);
       } else if (child instanceof SVGPathElement) {
         obj = SceneResource.parseSvgPath(scene, child);
-
+        obj.label = child.id;
         parent.add(obj);
       } else if (child instanceof SVGLinearGradientElement) {
         scene.setGradient(

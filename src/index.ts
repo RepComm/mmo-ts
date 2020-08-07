@@ -16,13 +16,12 @@ async function init() {
     premadeCanvas: canvas
   }).setScene(scene).handleResize().start();
 
-  const penguinRes = await SceneResource.load("./objects/penguin.svg");
-  const penguin = new Penguin();
-  penguinRes.scene.transform.position.set(-8, -14);
-  penguin.add(penguinRes.scene);
-  penguin.transform.position.set(100, 100);
+  await Penguin.initResources();
 
+  const penguin = new Penguin();
+  penguin.transform.position.set(100, 100);
   scene.add(penguin);
+  console.log(scene);
 
   const input = GameInput.get();
   input.setRenderer(renderer);

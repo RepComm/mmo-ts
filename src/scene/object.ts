@@ -2,12 +2,23 @@
 import { Transform2d } from "../math/transform.js";
 import { GradientDef } from "./scene2d.js";
 
+export interface Object2DTraverseCallback {
+  (child: Object2D):void;
+}
+
 export class Object2D {
   parent: Object2D;
   transform: Transform2d = new Transform2d();
   children: Set<Object2D>;
   preRenderStarted: boolean;
   postRenderEnded: boolean = true;
+  label: string = "";
+  getChildByLabel (label: string): Object2D {
+    for (let child of this.children) {
+      if (child.label == label) return child;
+    }
+    return undefined;
+  }
   hasChildren(): boolean {
     return this.children && this.children.size > 0;
   }
@@ -37,6 +48,7 @@ export class Object2D {
     if (alertParent) {
       parent.add(this, false);
     }
+    this.parent = parent;
     return this;
   }
   add(child: Object2D, alertChild: boolean = true): Object2D {
@@ -82,10 +94,17 @@ export class Object2D {
   }
   render(ctx: CanvasRenderingContext2D): Object2D {
     this.preRender(ctx);
-
     this.renderChildren(ctx);
 
     this.postRender(ctx);
+    return this;
+  }
+  traverse (traverseCallback: Object2DTraverseCallback): Object2D {
+    if (!this.children) return this;
+    for (let child of this.children) {
+      traverseCallback(child);
+      child.traverse(traverseCallback);
+    }
     return this;
   }
 }
