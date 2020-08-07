@@ -12,15 +12,53 @@ export class Penguin extends Object2D {
   walkSteps: number = 0;
   walkDist: number = 0;
 
+  animFrameInterval: number = 200;
+  animFrameCounter: number = 0;
+
   static displayRes: SceneResource;
   display: PathObject2D = new PathObject2D();
-  static fwd0: Object2D;
+
+  walkFwdFrames: Array<Object2D>;
+  currentFrameIndex: number = 0;
+  currentFrame: Object2D;
 
   constructor () {
     super();
-    // this.display.add(Penguin.fwd0);
-    console.log(Penguin.fwd0);
-    this.add(Penguin.fwd0);
+    let peng = Penguin.displayRes
+      .scene
+      .getChildByLabel("layer1")
+      .getChildByLabel("penguin");
+    
+    this.walkFwdFrames = new Array();
+    this.walkFwdFrames.push(
+      peng.getChildByLabel("fwd0"),
+      peng.getChildByLabel("fwd1"),
+      peng.getChildByLabel("fwd2")
+    );
+  }
+
+  setDisplay (frame: Object2D): Penguin {
+    if (this.currentFrame) {
+      this.currentFrame.removeSelf();
+      console.log("Told", this.currentFrame, "to remove itself");
+    } else {
+      console.log("Couldn't recycle frame", this.currentFrame);
+    }
+    if (frame) {
+      this.currentFrame = frame;
+      this.add(frame);
+    }
+    return this;
+  }
+
+  nextFrame (): Penguin {
+    this.currentFrameIndex ++;
+    if (this.currentFrameIndex > this.walkFwdFrames.length-1) {
+      this.currentFrameIndex = 0;
+    }
+    this.currentFrame = this.walkFwdFrames[this.currentFrameIndex];
+    this.setDisplay(this.currentFrame);
+    return this;
   }
 
   walkTo (to: Vec2): Penguin {
@@ -37,6 +75,12 @@ export class Penguin extends Object2D {
       this.walkSteps += this.walkStep / this.walkDist;
       if (this.walkSteps > 1) this.isWalking = false;
       this.transform.position.copy(this.walkFromVec).lerp(this.walkToVec, this.walkSteps);
+
+      this.animFrameCounter+=1000/30;
+      if (this.animFrameCounter > this.animFrameInterval) {
+        this.animFrameCounter = 0;
+        this.nextFrame();
+      }
     }
     super.render(ctx);
     return this;
@@ -49,9 +93,5 @@ export class Penguin extends Object2D {
     //   console.log("Setting", child.label, "position to 0 0", child.transform.position);
     //   child.transform.position.set(0,0);
     // });
-
-    let pengroup = Penguin.displayRes.scene.getChildByLabel("layer1").getChildByLabel("penguin");
-
-    Penguin.fwd0 = pengroup.getChildByLabel("fwd0");
   }
 }
