@@ -12,7 +12,7 @@ export class Penguin extends Object2D {
   walkSteps: number = 0;
   walkDist: number = 0;
 
-  animFrameInterval: number = 200;
+  animFrameInterval: number = 160;
   animFrameCounter: number = 0;
 
   static displayRes: SceneResource;
@@ -22,27 +22,29 @@ export class Penguin extends Object2D {
   currentFrameIndex: number = 0;
   currentFrame: Object2D;
 
-  constructor () {
+  constructor() {
     super();
     let peng = Penguin.displayRes
       .scene
       .getChildByLabel("layer1")
       .getChildByLabel("penguin");
-    
+
     this.walkFwdFrames = new Array();
     this.walkFwdFrames.push(
       peng.getChildByLabel("fwd0"),
       peng.getChildByLabel("fwd1"),
-      peng.getChildByLabel("fwd2")
+      peng.getChildByLabel("fwd2"),
+      peng.getChildByLabel("fwd1")
     );
+
+    this.nextFrame();
   }
 
-  setDisplay (frame: Object2D): Penguin {
-    if (this.currentFrame) {
-      this.currentFrame.removeSelf();
-      console.log("Told", this.currentFrame, "to remove itself");
-    } else {
-      console.log("Couldn't recycle frame", this.currentFrame);
+  setDisplay(frame: Object2D): Penguin {
+    if (this.children) {
+      this.children.forEach((parent, child) => {
+        this.remove(child);
+      });
     }
     if (frame) {
       this.currentFrame = frame;
@@ -51,9 +53,9 @@ export class Penguin extends Object2D {
     return this;
   }
 
-  nextFrame (): Penguin {
-    this.currentFrameIndex ++;
-    if (this.currentFrameIndex > this.walkFwdFrames.length-1) {
+  nextFrame(): Penguin {
+    this.currentFrameIndex++;
+    if (this.currentFrameIndex > this.walkFwdFrames.length - 1) {
       this.currentFrameIndex = 0;
     }
     this.currentFrame = this.walkFwdFrames[this.currentFrameIndex];
@@ -61,7 +63,7 @@ export class Penguin extends Object2D {
     return this;
   }
 
-  walkTo (to: Vec2): Penguin {
+  walkTo(to: Vec2): Penguin {
     this.walkToVec.copy(to);
     this.walkFromVec.copy(this.transform.position);
     this.isWalking = true;
@@ -70,13 +72,13 @@ export class Penguin extends Object2D {
     return this;
   }
 
-  render (ctx: CanvasRenderingContext2D): Penguin {
+  render(ctx: CanvasRenderingContext2D): Penguin {
     if (this.isWalking) {
       this.walkSteps += this.walkStep / this.walkDist;
       if (this.walkSteps > 1) this.isWalking = false;
       this.transform.position.copy(this.walkFromVec).lerp(this.walkToVec, this.walkSteps);
 
-      this.animFrameCounter+=1000/30;
+      this.animFrameCounter += 1000 / 30;
       if (this.animFrameCounter > this.animFrameInterval) {
         this.animFrameCounter = 0;
         this.nextFrame();
@@ -86,7 +88,7 @@ export class Penguin extends Object2D {
     return this;
   }
 
-  static async initResources () {
+  static async initResources() {
     Penguin.displayRes = await SceneResource.load("./objects/penguin-all-sheet.svg");
     // Penguin.displayRes.scene.transform.position.set(0, 0);
     // Penguin.displayRes.scene.traverse((child)=>{

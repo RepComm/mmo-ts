@@ -21,7 +21,6 @@ async function init() {
   const penguin = new Penguin();
   penguin.transform.position.set(100, 100);
   scene.add(penguin);
-  console.log(scene);
 
   const input = GameInput.get();
   input.setRenderer(renderer);

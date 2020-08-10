@@ -30,6 +30,7 @@ export class Object2D {
     if (alertChild && child.hasParent()) {
       child.removeSelf(false);
     }
+    this.children.delete(child);
     return this;
   }
   hasParent(): boolean {
@@ -53,7 +54,10 @@ export class Object2D {
   }
   add(child: Object2D, alertChild: boolean = true): Object2D {
     if (!this.children) this.children = new Set();
-    if (this.has(child)) throw "Cannot add child twice";
+    if (this.has(child)) {
+      console.log("Child was added twice", child);
+      // throw `Cannot add child twice`;
+    }
     if (child.hasParent()) child.removeSelf(true);
 
     this.children.add(child);
